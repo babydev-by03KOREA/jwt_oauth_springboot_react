@@ -88,8 +88,8 @@ public class UserController {
 
             HttpServletResponse response
     ) {
-        if (oldRefreshToken == null) {
-            throw new IllegalArgumentException("Refresh token이 없습니다.");
+        if (oldRefreshToken == null || oldRefreshToken.isBlank()) {
+            return ResponseEntity.ok(Collections.emptyMap());
         }
 
         // deviceId 우선순위: 헤더 → 쿠키 → 서버에서 신규 발급

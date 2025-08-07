@@ -9,6 +9,7 @@ import {useDispatch, useSelector} from "react-redux";
 import {useEffect} from "react";
 import {fetchProfile, refreshAuth} from "./store/authSlice";
 import AdminRoute from "./components/AdminRoute";
+import OAuth2RedirectKakao from "./pages/OAuth2RedirectKakao";
 
 function App() {
     const dispatch = useDispatch();
@@ -49,6 +50,10 @@ function App() {
                             <AdminPage/>
                         </AdminRoute>
                     }
+                />
+                <Route
+                    path="/oauth2/redirect/kakao"
+                    element={<OAuth2RedirectKakao />}
                 />
             </Routes>
         </Router>

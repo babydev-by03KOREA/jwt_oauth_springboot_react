@@ -1,13 +1,13 @@
 package com.common.api.login.service;
 
-import com.common.api.login.dto.LoginRequest;
-import com.common.api.login.dto.ProfileResponse;
-import com.common.api.login.dto.SignupRequest;
-import com.common.api.login.dto.TokenResponse;
+import com.common.api.login.dto.*;
+import com.common.api.login.entity.user.OAuthUser;
 import com.common.api.login.entity.user.RoleEntity;
 import com.common.api.login.entity.user.User;
 import com.common.api.login.entity.user.UserRefreshToken;
+import com.common.api.login.enums.OAuthProvider;
 import com.common.api.login.enums.RoleType;
+import com.common.api.login.repository.OAuthUserRepository;
 import com.common.api.login.repository.RoleRepository;
 import com.common.api.login.repository.UserRefreshTokenRepository;
 import com.common.api.login.repository.UserRepository;
@@ -28,6 +28,7 @@ import java.util.stream.Collectors;
 public class UserService {
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
+    private final OAuthUserRepository oauthUserRepository;
     private final UserRefreshTokenRepository refreshTokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
@@ -54,6 +55,55 @@ public class UserService {
 
         user.addRole(role);
         userRepository.save(user);
+    }
+
+    @Transactional
+    public User processOAuth2User(OAuth2KakaoUserInfoDto dto) {
+        // 1) 먼저 User 테이블에 가입 or 조회
+        User user = userRepository.findByUserId(dto.getId())
+                .orElseGet(() -> {
+                    // 가입 로직: userId는 카카오ID, password null, displayName dto.getNickname() 등
+                    User newUser = User.builder()
+                            .userId(dto.getId())
+                            .email(dto.getEmail())
+                            .password(null)
+                            .displayName(dto.getNickname())
+                            .build();
+                    return userRepository.save(newUser);
+                });
+
+        // 2) OAuthUser (oauth_users) 테이블에 저장/업데이트
+        OAuthUser oauthUser = oauthUserRepository
+                .findByProviderAndProviderUserId(OAuthProvider.KAKAO, dto.getId())
+                .map(existing -> {
+                    // 있으면 업데이트
+                    existing.updateProfile(
+                            dto.getEmail(),
+                            dto.getNickname(),
+                            dto.getProfileImageUrl().orElse(null),
+                            dto.getRawAttributes()    // attrs 맵 전체
+                    );
+                    return existing;
+                })
+                .orElseGet(() -> {
+                    // 없으면 새로 빌드
+                    return oauthUserRepository.save(
+                            OAuthUser.builder()
+                                    .user(user)
+                                    .provider(OAuthProvider.KAKAO)
+                                    .providerUserId(dto.getId())
+                                    .email(dto.getEmail())
+                                    .displayName(dto.getNickname())
+                                    .profileImageUrl(dto.getProfileImageUrl().orElse(null))
+                                    .rawAttributes(dto.getRawAttributes())
+                                    .build()
+                    );
+                });
+
+        // 3) OAuthUser 저장 후에도 User 쪽 연관관계 유지
+        oauthUserRepository.save(oauthUser);
+
+        return user;
     }
 
     @Transactional
@@ -135,6 +185,12 @@ public class UserService {
         refreshTokenRepository.save(saved);
 
         return new TokenResponse(newAccessToken, newRefreshToken);
+    }
+
+    @Transactional
+    public User findByUserIdOrThrow(String userId) {
+        return userRepository.findByUserId(userId)
+                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다: " + userId));
     }
 
     @Transactional

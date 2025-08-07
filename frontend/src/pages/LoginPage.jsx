@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 import axios from "axios";
 import {useDispatch} from "react-redux";
 import {fetchProfile, setCredentials} from "../store/authSlice";
+import KakaoLoginImg from "../assets/OAuth/kakao_login_large_wide.png";
 
 function readCookie(name) {
     const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
@@ -69,6 +70,11 @@ export default function LoginPage() {
         }
     };
 
+    const kakaoLogin = () => {
+        // Spring Security OAuth2 클라이언트가 제공하는 엔드포인트
+        window.location.href = 'http://localhost:8080/oauth2/authorization/kakao';
+    };
+
     return (
         <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
             <div className="max-w-md w-full bg-white rounded-2xl shadow-lg p-8 space-y-6">
@@ -114,9 +120,7 @@ export default function LoginPage() {
                         로그인
                     </button>
                 </form>
-                <a href="/oauth2/authorization/kakao">
-                    <img src="../../assets/OAuth/kakao_login_large_wide.png" alt="카카오 로그인"/>
-                </a>
+                <img src={KakaoLoginImg} alt="카카오 로그인" className="mt-4" onClick={kakaoLogin}/>
                 <div className="flex justify-between text-sm text-gray-500">
                     <Link to="/signup" className="text-indigo-600 hover:underline">
                         회원가입

@@ -14,12 +14,35 @@ spring:
 
     defer-datasource-initialization: true
 
-
   datasource:
     driver-class-name: org.mariadb.jdbc.Driver
     url: jdbc:mariadb://127.0.0.1:3307/spring_security
     username: parkhyeongju
     password: "!hyeongju@"
+
+  security:
+    oauth2:
+      client:
+        registration:
+          kakao:
+            client-id: ${MYAPP_KAKAO_CLIENT_ID}
+            client-secret: ${MYAPP_KAKAO_CLIENT_SECRET}
+            authorization-grant-type: authorization_code
+            redirect-uri: http://localhost:8080/login/oauth2/code/kakao
+            client-authentication-method: client_secret_post
+            client-name: kakao
+            scope:
+              - profile_nickname
+              - account_email
+              - gender
+              - age_range
+              - birthday
+        provider:
+          kakao:
+            authorization-uri: https://kauth.kakao.com/oauth/authorize
+            token-uri: https://kauth.kakao.com/oauth/token
+            user-info-uri: https://kapi.kakao.com/v2/user/me
+            user-name-attribute: id
 
 jwt:
   secret: "unvc/0IBfMVGKYNZa9xML9mhxBU8cactIVvVu7m6cmzZsW5dx+ncf6dBbMt3X/Wxu2cj0YaQnZCnmUch60TkKQ=="
