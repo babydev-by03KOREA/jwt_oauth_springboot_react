@@ -24,6 +24,8 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import static com.common.api.login.util.HashUtils.sha256Hex;
+
 @Component
 @RequiredArgsConstructor
 public class OAuth2LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHandler {
@@ -40,15 +42,10 @@ public class OAuth2LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHan
 
         // 1) 시큐리티 Context에서 로그인된 OAuth2User 꺼내기
         DefaultOAuth2User oauthUser = (DefaultOAuth2User) authentication.getPrincipal();
-        String userId = oauthUser.getAttribute("userId");
+//        String userId = oauthUser.getAttribute("userId");
+        String userId = authentication.getName();
         User user = userService.findByUserIdOrThrow(userId);
 
-        Set<String> roleNames = user.getUserRoles().stream()
-                .map(ur -> ur.getRole().getRoleName().name())
-                .collect(Collectors.toSet());
-
-        // 2) 신규 Access/Refresh 토큰 생성
-        String accessToken = jwtTokenProvider.createAccessToken(userId, roleNames);
         String refreshToken = jwtTokenProvider.createRefreshToken(userId);
 
         // 3) deviceId, userAgent 결정 (OAuth2 로그인 직후라 헤더에서 꺼내기)
@@ -63,15 +60,12 @@ public class OAuth2LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHan
         }
         String userAgent = request.getHeader("User-Agent");
 
-        LocalDateTime expiry1 = LocalDateTime.now()
-                .plus(jwtTokenProvider.getRefreshTokenValidityInMs(), ChronoUnit.MILLIS);
-
         // 4) DB에 RefreshToken 저장
         UserRefreshToken entity = UserRefreshToken.builder()
                 .user(user)
                 .deviceId(deviceId)
                 .userAgent(userAgent)
-                .refreshToken(refreshToken)
+                .refreshTokenHash(sha256Hex(refreshToken))
                 .expiresAt(LocalDateTime.now()
                         .plus(jwtTokenProvider.getRefreshTokenValidityInMs(), ChronoUnit.MILLIS))
                 .build();
@@ -80,17 +74,16 @@ public class OAuth2LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHan
         // 5) HttpOnly Cookie 에 RefreshToken 세팅
         ResponseCookie refreshCookie = ResponseCookie.from("refreshToken", refreshToken)
                 .httpOnly(true)
-                .secure(true)
+                .secure(false)
                 .path("/api/auth/refresh")
                 .maxAge(jwtTokenProvider.getRefreshTokenValidityInMs() / 1000)
                 .sameSite("Strict")
                 .build();
         response.addHeader(HttpHeaders.SET_COOKIE, refreshCookie.toString());
 
-        // 6) 최종 리다이렉트: 프론트 URL + AccessToken 쿼리 파라미터
         String targetUrl = UriComponentsBuilder
-                .fromUriString("http://localhost:3000/")
-//                .queryParam("accessToken", accessToken)
+                .fromUriString("http://localhost:3000/oauth2/redirect")
+                .queryParam("skipRefresh", "1")
                 .build().toString();
 
         getRedirectStrategy().sendRedirect(request, response, targetUrl);

@@ -1,5 +1,6 @@
 package com.common.api.login.config;
 
+import com.common.api.login.security.CustomOidcUserService;
 import com.common.api.login.security.JwtAuthenticationFilter;
 import com.common.api.login.security.OAuth2LoginSuccessHandler;
 import com.common.api.login.service.CustomOAuth2UserService;
@@ -19,6 +20,7 @@ public class SecurityConfig {
     private final JwtAuthenticationFilter jwtFilter;
     private final CustomOAuth2UserService oauth2UserService;
     private final OAuth2LoginSuccessHandler successHandler;
+    private final CustomOidcUserService customOidcUserService;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -39,8 +41,10 @@ public class SecurityConfig {
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
                 .oauth2Login(oauth2 -> oauth2
                         .userInfoEndpoint(userInfo -> userInfo
-                                .userService(oauth2UserService))
-                        .successHandler(successHandler)    // ← 여기!
+                                .userService(oauth2UserService)
+                                .oidcUserService(customOidcUserService)
+                        )
+                        .successHandler(successHandler)
                 );
 
         return http.build();

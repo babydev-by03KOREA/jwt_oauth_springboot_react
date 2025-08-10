@@ -2,6 +2,7 @@ package com.common.api.login.util;
 
 import com.common.api.login.entity.user.UserRole;
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
@@ -52,7 +53,8 @@ public class JwtTokenProvider {
         Date expiry = new Date(now.getTime() + accessTokenValidityInMs);
 
         return Jwts.builder()
-                .claim(Claims.SUBJECT, userId)
+//                .claim(Claims.SUBJECT, userId)
+                .subject(userId)
                 .claim("roles", roles)
                 .issuedAt(now)
                 .expiration(expiry)
@@ -81,11 +83,25 @@ public class JwtTokenProvider {
      */
     public boolean validateToken(String token) {
         try {
+            if (!isCompactJwt(token)) return false;
             Jwts.parser().verifyWith(secretKey).build().parseSignedClaims(token);
             return true;
         } catch (JwtException | IllegalArgumentException e) {
             // 로그 기록 등 예외 처리
             return false;
+        }
+    }
+
+    /**
+     * 만료된 액세스 토큰이라도 subject(userId)만 꺼낼 수 있으면 진행
+     * */
+    public String getSubjectEvenIfExpired(String token) {
+        try {
+            // 유효할 때
+            return getUserId(token); // 내부적으로 서명 검증 + 만료검사
+        } catch (ExpiredJwtException e) {
+            // 만료여도 서명 검증 후 던져지므로 subject는 신뢰 가능
+            return e.getClaims().getSubject();
         }
     }
 
@@ -111,11 +127,23 @@ public class JwtTokenProvider {
      * @return 유효한 경우 Claims 객체 반환
      */
     private Claims parseClaims(String token) {
+        if (!isCompactJwt(token)) {
+            throw new IllegalArgumentException("JWT 포맷이 아님(빈 값이거나 마침표 2개 미만)");
+        }
         return Jwts.parser()
                 .verifyWith(secretKey)
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();
+    }
+
+    private boolean isCompactJwt(String token) {
+        if (token == null) return false;
+        token = token.trim();
+        if (token.isEmpty()) return false;
+        // compact JWS 포맷: 마침표 2개
+        long dots = token.chars().filter(c -> c == '.').count();
+        return dots == 2;
     }
 
 }

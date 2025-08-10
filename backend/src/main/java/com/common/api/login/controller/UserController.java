@@ -75,7 +75,7 @@ public class UserController {
 
 
     @PostMapping("/refresh")
-    public ResponseEntity<Map<String, String>> refreshToken(
+    public ResponseEntity<?> refreshToken(
             @CookieValue(value = "refreshToken", required = false) String oldRefreshToken,
 
             // 앱: X-Device-Id 헤더
@@ -89,7 +89,7 @@ public class UserController {
             HttpServletResponse response
     ) {
         if (oldRefreshToken == null || oldRefreshToken.isBlank()) {
-            return ResponseEntity.ok(Collections.emptyMap());
+            return ResponseEntity.noContent().build(); // 204
         }
 
         // deviceId 우선순위: 헤더 → 쿠키 → 서버에서 신규 발급

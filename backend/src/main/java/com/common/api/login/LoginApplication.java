@@ -10,6 +10,8 @@ public class LoginApplication {
         io.github.cdimascio.dotenv.Dotenv dotenv = io.github.cdimascio.dotenv.Dotenv.load();
         System.setProperty("MYAPP_KAKAO_CLIENT_ID", dotenv.get("MYAPP_KAKAO_CLIENT_ID"));
         System.setProperty("MYAPP_KAKAO_CLIENT_SECRET", dotenv.get("MYAPP_KAKAO_CLIENT_SECRET"));
+        System.setProperty("MYAPP_GOOGLE_CLIENT_ID", dotenv.get("MYAPP_GOOGLE_CLIENT_ID"));
+        System.setProperty("MYAPP_GOOGLE_CLIENT_SECRET", dotenv.get("MYAPP_GOOGLE_CLIENT_SECRET"));
         SpringApplication.run(LoginApplication.class, args);
     }
 

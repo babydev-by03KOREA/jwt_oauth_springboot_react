@@ -1,5 +1,6 @@
+// App.js
 import './App.css';
-import {BrowserRouter as Router, Routes, Route} from 'react-router-dom';
+import {BrowserRouter as Router, Routes, Route, useLocation} from 'react-router-dom';
 import SignupPage from './pages/SignupPage';
 import HomePage from './pages/HomePage';
 import LoginPage from "./pages/LoginPage";
@@ -9,55 +10,50 @@ import {useDispatch, useSelector} from "react-redux";
 import {useEffect} from "react";
 import {fetchProfile, refreshAuth} from "./store/authSlice";
 import AdminRoute from "./components/AdminRoute";
-import OAuth2RedirectKakao from "./pages/OAuth2RedirectKakao";
+import OAuth2Redirect from "./pages/OAuth2Redirect";
 
-function App() {
+function AppInner() {
     const dispatch = useDispatch();
-    const {initialized, loading, accessToken} = useSelector(state => state.auth);
+    const location = useLocation();
+    const {accessToken} = useSelector(state => state.auth);
 
-    // 앱 처음 마운트될 때 한 번만 토큰 갱신 시도
+    // 1) 전역 리프레시: skipRefresh=1이면 한 번 건너뜀
     useEffect(() => {
-        dispatch(refreshAuth());
-    }, [dispatch]);
+        const params = new URLSearchParams(location.search);
+        const skip = params.get('skipRefresh') === '1';
+        if (skip) return;
 
+        // 이미 토큰 있으면 굳이 갱신하지 않기
+        if (!accessToken) {
+            dispatch(refreshAuth()); // 내부에서 withCredentials true
+        }
+    }, [dispatch, location.search, accessToken]);
+
+    // 2) 토큰 생기면 프로필 조회
     useEffect(() => {
-        // 2) 토큰이 생기면 프로필 조회
         if (accessToken) {
             dispatch(fetchProfile());
         }
     }, [accessToken, dispatch]);
 
-    // 아직 초기화 중이면 로딩 화면 또는 스켈레톤
-    if (!initialized || loading) {
-        return (
-            <div className="min-h-screen flex items-center justify-center">
-                <p className="text-gray-500">로딩 중…</p>
-            </div>
-        );
-    }
-
     return (
-        <Router>
+        <>
             <Navbar/>
             <Routes>
                 <Route path="/" element={<HomePage/>}/>
                 <Route path="/signup" element={<SignupPage/>}/>
                 <Route path="/login" element={<LoginPage/>}/>
-                <Route
-                    path="/admin"
-                    element={
-                        <AdminRoute>
-                            <AdminPage/>
-                        </AdminRoute>
-                    }
-                />
-                <Route
-                    path="/oauth2/redirect/kakao"
-                    element={<OAuth2RedirectKakao />}
-                />
+                <Route path="/admin" element={<AdminRoute><AdminPage/></AdminRoute>} />
+                <Route path="/oauth2/redirect" element={<OAuth2Redirect/>} />
             </Routes>
-        </Router>
+        </>
     );
 }
 
-export default App;
+export default function App() {
+    return (
+        <Router>
+            <AppInner/>
+        </Router>
+    );
+}
